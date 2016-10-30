@@ -23,6 +23,9 @@ if __name__ == "__main__":
     p.add_argument('--comp_data_dir', dest='comp_data_dir',
                    default='/path/to/comp/dir',
                    help='Path to composition storge directory')
+    p.add_argument('--llh_dir', dest='llh_dir',
+                   default='/path/to/llh/dir',
+                   help='Path to ShowerLLH storge directory')
     args = p.parse_args()
 
     cwd = os.getcwd()
@@ -66,7 +69,7 @@ if __name__ == "__main__":
         current_llhdir_line = lines[8]
         current_llhdir = current_llhdir_line.split()[-1].strip()
         new_llhdir_line = current_llhdir_line.replace(current_llhdir,
-            '"'+args.comp_data_dir+'/ShowerLLH'+'"')
+            '"'+args.llh_dir+'"')
         current_metaproject_line = lines[6]
         current_metaproject = current_metaproject_line.split()[-1].strip()
         new_metaproject_line = current_metaproject_line.replace(

@@ -41,6 +41,7 @@ if __name__ == "__main__":
     keys += ['IceTopMaxSignal', 'IceTopMaxSignalString',
              'IceTopMaxSignalInEdge', 'StationDensity', 'NStations']
     keys += ['NChannels', 'InIce_charge', 'InIce_FractionContainment']
+    keys += ['LaputopParams']
 
     t0 = time.time()
 
@@ -70,7 +71,7 @@ if __name__ == "__main__":
     hdf = I3HDFTableService(args.outfile)
 
     def get_nstations(frame):
-        nstation = -1
+        nstation = 0
         if IT_pulses in frame:
             nstation = count_stations(
                 dataclasses.I3RecoPulseSeriesMap.from_frame(frame, IT_pulses))
@@ -79,15 +80,13 @@ if __name__ == "__main__":
     tray.Add(get_nstations)
 
     def get_inice_charge(frame):
-        q_tot = -1.0
-        n_channels = -1
+        q_tot = 0.0
+        n_channels = 0
         if inice_pulses in frame:
             VEMpulses = frame[inice_pulses]
             if VEMpulses.__class__ == dataclasses.I3RecoPulseSeriesMapMask:
                 VEMpulses = VEMpulses.apply(frame)
 
-                q_tot = 0.0
-                n_channels = 0
                 for om, pulses in VEMpulses:
                     n_channels += 1
                     for pulse in pulses:

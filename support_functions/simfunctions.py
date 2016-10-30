@@ -64,6 +64,26 @@ def sim2cfg(sim):
     return inverted_dict[sim]
 
 
+# def sim2comp(sim, full=False, convert=False):
+#
+#     s = getSimDict()
+#     converter = {'P': 'p', 'He': 'h', 'O': 'o', 'Fe': 'f'}
+#     if convert:
+#         inverted_dict = {v: converter[k]
+#                          for k2 in s for k in s[k2] for v in s[k2][k]}
+#     else:
+#         inverted_dict = {v: k for k2 in s for k in s[k2] for v in s[k2][k]}
+#     comp = inverted_dict[sim]
+#     fullDict = {'P': 'proton', 'He': 'helium', 'O': 'oxygen', 'Fe': 'iron'}
+#     if full:
+#         comp = fullDict[comp]
+#     return comp
+
+def sim2comp(sim):
+
+    sim_dict = {'7006': 'P', '7579': 'P', '7007': 'Fe', '7784': 'Fe'}
+    return sim_dict[sim]
+
 def sim2comp(sim, full=False, convert=False):
 
     s = getSimDict()
