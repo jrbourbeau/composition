@@ -1,20 +1,11 @@
 #!/usr/bin/env python
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import StratifiedShuffleSplit, cross_val_score, train_test_split
-# Import classifiers
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import StratifiedShuffleSplit
 
-def get_train_test_sets(df):
+def get_train_test_sets(df, feature_list):
     # Load and preprocess training data
-    feature_list = ['ML_energy', 'MC_zenith', 'InIce_charge']
-    X, y = df[feature_list].values , df.comp.values
+    X, y = df[feature_list].values , df.MC_comp.values
     # Convert comp string labels to numerical labels
     y = LabelEncoder().fit_transform(y)
 

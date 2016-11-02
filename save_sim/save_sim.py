@@ -40,7 +40,7 @@ if __name__ == "__main__":
     keys += ['MCPrimary']
     keys += ['IceTopMaxSignal', 'IceTopMaxSignalString',
              'IceTopMaxSignalInEdge', 'StationDensity', 'NStations']
-    keys += ['NChannels', 'InIce_charge', 'InIce_FractionContainment']
+    keys += ['NChannels', 'InIce_charge', 'InIce_FractionContainment', 'IceTop_FractionContainment']
     keys += ['LaputopParams']
 
     t0 = time.time()
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     tray.Add(get_inice_charge)
 
-    tray.Add(i3modules.AddInIceContainment)
+    tray.Add(i3modules.AddMCContainment)
 
     #====================================================================
     # Finish

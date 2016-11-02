@@ -48,8 +48,8 @@ class AddITContainment(icetray.I3Module):  #Kath's containment
 
     def Finish(self):
         return
-        
-class AddInIceContainment(icetray.I3Module):  # Kath's containment
+
+class AddMCContainment(icetray.I3Module):  # Kath's containment
     ''' Icetray module to determine if ShowerLLH reconstructions
         are contained in IceCube '''
 
@@ -69,6 +69,8 @@ class AddInIceContainment(icetray.I3Module):  # Kath's containment
         if 'MCPrimary' in frame:
             frame.Put('InIce_FractionContainment',
                       dc.I3Double(self.scaling.scale_inice(frame['MCPrimary'])))
+            frame.Put('IceTop_FractionContainment',
+                      dc.I3Double(self.scaling.scale_icetop(frame['MCPrimary'])))
 
         # if 'Laputop' in frame:
         #     frame.Put('Laputop_FractionContainment',

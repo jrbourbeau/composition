@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 
 from __future__ import division
-from collections import Counter
 import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn.apionly as sns
-from mlxtend.evaluate import plot_decision_regions
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score
@@ -17,6 +15,8 @@ from sklearn.ensemble import RandomForestClassifier
 from icecube import ShowerLLH
 
 from composition.analysis.load_sim import load_sim
+from composition.analysis.preprocessing import get_train_test_sets
+from composition.analysis.pipelines import RF_pipeline
 
 
 if __name__ == '__main__':
@@ -31,42 +31,27 @@ if __name__ == '__main__':
                    help='Output directory')
     args = p.parse_args()
 
-    '''Throughout this code, X will represent features,
-       while y will represent class labels'''
+    # Throughout this code, X will represent features while y will represent
+    # class labels
 
+    # Load and preprocess training data
     df = load_sim()
-    # Preprocess training data
-    # feature_list = np.array(['reco_log_energy', 'reco_cos_zenith', 'InIce_log_charge',
     feature_list = np.array(['reco_log_energy', 'ShowerPlane_cos_zenith', 'InIce_log_charge',
                              'NChannels', 'NStations', 'reco_radius', 'reco_InIce_containment', 'log_s125'])
     num_features = len(feature_list)
-    X, y = df[feature_list].values, df.MC_comp.values
-    # Convert comp string labels to numerical labels
-    le = LabelEncoder().fit(y)
-    y  = le.transform(y)
+    X_train_std, X_test_std, y_train, y_test = get_train_test_sets(
+        df, feature_list)
 
-    # Split data into training and test samples
-    sss = StratifiedShuffleSplit(n_splits=10, test_size=0.2, random_state=2)
-    for train_index, test_index in sss.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
+    pipeline = RF_pipeline()
+    pipeline.fit(X_train_std, y_train)
 
-    # Scale features and labels
-    # NOTE: the scaler is fit only to the training features
-    stdsc = StandardScaler()
-    X_train_std = stdsc.fit_transform(X_train)
-    # X_train_std = X_train_std[:, :-1]
-    X_test_std = stdsc.transform(X_test)
-    # X_test_std = X_test_std[:, :-1]
+    # forest = RandomForestClassifier(
+    #     n_estimators=500, max_depth=6, criterion='gini', max_features=None, n_jobs=-1, verbose=1)
+    # # Train forest on training data
+    # forest.fit(X_train_std, y_train)
 
-    print('events = ' + str(y_train.shape[0]))
-
-    forest = RandomForestClassifier(
-        n_estimators=500, max_depth=6, criterion='gini', max_features=None, n_jobs=-1, verbose=1)
-    # Train forest on training data
-    forest.fit(X_train_std, y_train)
-    name = forest.__class__.__name__
-    importances = forest.feature_importances_
+    name = pipeline.steps[1][1].__class__.__name__
+    importances = pipeline.steps[1][1].feature_importances_
     indices = np.argsort(importances)[::-1]
 
     fig, ax = plt.subplots()
@@ -102,12 +87,24 @@ if __name__ == '__main__':
 
     print('=' * 30)
     print(name)
-    test_predictions = forest.predict(X_test_std)
-    test_acc = accuracy_score(y_test, test_predictions)
-    print('Test accuracy: {:.4%}'.format(test_acc))
-    train_predictions = forest.predict(X_train_std)
-    train_acc = accuracy_score(y_train, train_predictions)
-    print('Train accuracy: {:.4%}'.format(train_acc))
+    # test_predictions = pipeline.predict(X_test_std)
+    # test_acc = accuracy_score(y_test, test_predictions)
+    # print('Test accuracy: {:.4%}'.format(test_acc))
+    # train_predictions = pipeline.predict(X_train_std)
+    # train_acc = accuracy_score(y_train, train_predictions)
+    # print('Train accuracy: {:.4%}'.format(train_acc))
+    train_scores = cross_val_score(estimator=pipeline,
+                         X=X_train_std,
+                         y=y_train,
+                         cv=10,
+                         n_jobs=1)
+    print('CV training accuracy: %.3f +/- %.3f' % (np.mean(train_scores), np.std(train_scores)))
+    test_scores = cross_val_score(estimator=pipeline,
+                         X=X_test_std,
+                         y=y_test,
+                         cv=10,
+                         n_jobs=1)
+    print('CV testing accuracy: %.3f +/- %.3f' % (np.mean(test_scores), np.std(test_scores)))
     print('=' * 30)
 
     # # Plotting decision regions

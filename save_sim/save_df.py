@@ -13,19 +13,16 @@ from collections import defaultdict
 import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.paths as paths
 from composition.support_functions.checkdir import checkdir
+from ShowerLLH_scripts.analysis.zfix import zfix
+
 
 if __name__ == "__main__":
     # Setup global path names
     mypaths = paths.Paths()
     checkdir(mypaths.comp_data_dir)
-    default_sim_list = ['7006', '7579', '7007', '7784']
 
     p = argparse.ArgumentParser(
         description='Runs extra modules over a given fileList')
-    p.add_argument('-s', '--sim', dest='sim', nargs='*',
-                   choices=default_sim_list,
-                   default=default_sim_list,
-                   help='Simulation to run over')
     p.add_argument('-o', '--outfile', dest='outfile',
                    help='Output file')
     args = p.parse_args()
@@ -35,8 +32,8 @@ if __name__ == "__main__":
     # Get simulation information
     t_sim = time.time()
     print('Loading simulation information...')
-    file_list = glob.glob(mypaths.comp_data_dir +
-                          '/IT73_sim/files/sim_????.hdf5')
+    file_list = sorted(glob.glob(mypaths.comp_data_dir +
+                          '/IT73_sim/files/sim_????.hdf5'))
     value_keys = ['IceTopMaxSignal',
                   'IceTopMaxSignalInEdge',
                   'IceTopMaxSignalString',
@@ -44,6 +41,7 @@ if __name__ == "__main__":
                   'NChannels',
                   'NStations',
                   'StationDensity',
+                  'IceTop_FractionContainment',
                   'InIce_FractionContainment']
     for f in file_list:
         print('\tWorking on {}'.format(f))
@@ -72,10 +70,8 @@ if __name__ == "__main__":
     # Get ShowerLLH reconstruction information
     t_LLH = time.time()
     print('Loading ShowerLLH reconstructions...')
-    file_list = glob.glob(mypaths.llh_dir +
-                          '/IT73_sim/files/SimLLH_????_logdist.hdf5')
-    value_keys = ['ShowerLLH_IceTop_FractionContainment',
-                  'ShowerLLH_InIce_FractionContainment']
+    file_list = sorted(glob.glob(mypaths.llh_dir +
+                          '/IT73_sim/files/SimLLH_????_logdist.hdf5'))
     for f in file_list:
         print('\tWorking on {}'.format(f))
         LLH_dict = {}
@@ -89,13 +85,13 @@ if __name__ == "__main__":
         showerLLH_iron = store.select('ShowerLLH_iron')
         LLH_dict['reco_exists'] = showerLLH_proton.exists.astype(bool)
         # Get ML energy
-        energy_choices = [showerLLH_proton.energy, showerLLH_iron.energy]
+        energy_choices = [showerLLH_proton.energy.values, showerLLH_iron.energy.values]
         LLH_dict['reco_energy'] = np.choose(maxLLH_index, energy_choices)
-        # # Get ML core position
-        # x_choices = [showerLLH_proton.x, showerLLH_iron.x]
-        # LLH_dict['reco_x'] = np.choose(maxLLH_index, x_choices)
-        # y_choices = [showerLLH_proton.y, showerLLH_iron.y]
-        # LLH_dict['reco_y'] = np.choose(maxLLH_index, y_choices)
+        # Get ML core position
+        x_choices = [showerLLH_proton.x, showerLLH_iron.x]
+        LLH_dict['reco_x'] = np.choose(maxLLH_index, x_choices)
+        y_choices = [showerLLH_proton.y, showerLLH_iron.y]
+        LLH_dict['reco_y'] = np.choose(maxLLH_index, y_choices)
         # Get ML core radius
         r_choices = [np.sqrt(showerLLH_proton.x**2 + showerLLH_proton.y**2),
                      np.sqrt(showerLLH_iron.x**2 + showerLLH_iron.y**2)]
@@ -112,6 +108,9 @@ if __name__ == "__main__":
                                      store.select('ShowerLLH_InIce_containment_iron').value]
         LLH_dict['reco_InIce_containment'] = np.choose(
             maxLLH_index, InIce_containment_choices)
+
+        LLH_dict['reco_energy'] = 10**(np.log10(LLH_dict['reco_energy'])-zfix(np.pi-LLH_dict['reco_zenith']))
+
         store.close()
 
         for key in LLH_dict.keys():
