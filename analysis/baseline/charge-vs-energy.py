@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 import argparse
 import seaborn.apionly as sns
 
+from icecube import ShowerLLH
+
 from composition.analysis.load_sim import load_sim
 from composition.support_functions.checkdir import checkdir
 
@@ -18,7 +20,7 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(
         description='Creates performance plots for ShowerLLH')
     p.add_argument('-o', '--outdir', dest='outdir',
-                   default='/home/jbourbeau/public_html/figures/composition', help='Output directory')
+                   default='/home/jbourbeau/public_html/figures/composition/baseline', help='Output directory')
     p.add_argument('-e', '--energy', dest='energy',
                    default='MC',
                    choices=['MC', 'reco'],
@@ -32,10 +34,8 @@ if __name__ == "__main__":
     # Import ShowerLLH sim reconstructions and cuts to be made
     df, cut_dict = load_sim(return_cut_dict=True)
     selection_mask = np.array([True] * len(df))
-    standard_cut_keys = ['reco_exists', 'reco_zenith', 'reco_IT_containment',
-                         'IceTopMaxSignalInEdge', 'IceTopMaxSignal', 'NChannels', 'LF_InIce_containment']
-    # standard_cut_keys = ['reco_exists', 'reco_zenith', 'reco_IT_containment',
-    #                      'IceTopMaxSignalInEdge', 'IceTopMaxSignal', 'NChannels', 'InIce_containment']
+    standard_cut_keys = ['IT_containment', 'IceTopMaxSignalInEdge',
+                         'IceTopMaxSignal', 'NChannels', 'InIce_containment']
     for key in standard_cut_keys:
         selection_mask *= cut_dict[key]
 
@@ -48,7 +48,9 @@ if __name__ == "__main__":
 
     # 2D charge vs nchannels histogram of proton fraction
     charge_bins = np.linspace(0, 7, 75)
-    energy_bins = np.linspace(6.2, 9.51, 75)
+    LLH_bins = ShowerLLH.LLHBins(bintype='logdist')
+    energy_bins = LLH_bins.bins['E']
+    energy_bins = energy_bins[energy_bins >= 6.2]
     energy_midpoints = (energy_bins[1:] + energy_bins[:-1]) / 2
     proton_hist, xedges, yedges = np.histogram2d(log_energy[MC_proton_mask],
                                                  charge[MC_proton_mask],
@@ -93,13 +95,12 @@ if __name__ == "__main__":
     if args.energy == 'reco':
         plt.xlabel('$\log_{10}(E_{\mathrm{reco}}/\mathrm{GeV})$')
     plt.ylabel('$\log_{10}(Q_{\mathrm{total}})$')
-    plt.title('ShowerLLH IceTop and LineFit InIce containment')
     plt.xlim([6.2, 9.5])
     cb = plt.colorbar(
         label='P/(P+Fe) Fraction')
     if args.energy == 'MC':
-        outfile = args.outdir + '/charge-vs-reco-energy_MC-InIce-containment.png'
+        outfile = args.outdir + '/charge-vs-MC-energy.png'
     if args.energy == 'reco':
-        outfile = args.outdir + '/charge-vs-reco-energy_ShowerLLH-IT_LF-InIce-containment.png'
+        outfile = args.outdir + '/charge-vs-reco-energy.png'
     plt.savefig(outfile)
     plt.close()

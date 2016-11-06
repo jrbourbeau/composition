@@ -1,3 +1,5 @@
+#!/bin/sh /cvmfs/icecube.opensciencegrid.org/py2-v1/icetray-start
+#METAPROJECT /data/user/jbourbeau/metaprojects/icerec/V05-00-00/build
 #!/usr/bin/env python
 
 import glob
@@ -9,9 +11,7 @@ import getpass
 
 import composition.support_functions.paths as paths
 import composition.support_functions.simfunctions as simfunctions
-from composition.support_functions.dag_submitter import py_submit
 from composition.support_functions.checkdir import checkdir
-
 
 def get_argdict(comp_data_dir, **args):
 
@@ -77,20 +77,17 @@ def get_merge_argdict(**args):
     return merge_argdict
 
 
-def make_submit_script(executable, jobID, script_path, condordir):
+def make_submit_script(executable, jobID, script_path, condor_dir):
 
     checkdir(script_path)
-
     lines = ["universe = vanilla\n",
              "getenv = true\n",
              "executable = {}\n".format(executable),
              "arguments = $(ARGS)\n",
-             "log = /scratch/{}/logs/{}.log\n".format(
-                 getpass.getuser(), jobID),
-             "output = {}/outs/{}.out\n".format(condordir, jobID),
-             "error = {}/errors/{}.error\n".format(condordir, jobID),
+             "log = {}/logs/{}.log\n".format(condor_dir, jobID),
+             "output = {}/outs/{}.out\n".format(condor_dir, jobID),
+             "error = {}/errors/{}.error\n".format(condor_dir, jobID),
              "notification = Never\n",
-             # "+AccountingGroup=\"long.$ENV(USER)\"\n",
              "queue \n"]
 
     condor_script = script_path
@@ -100,10 +97,10 @@ def make_submit_script(executable, jobID, script_path, condordir):
     return
 
 
-def getjobID(jobID, comp_data_dir):
+def getjobID(jobID, condor_dir):
     jobID += time.strftime('_%Y%m%d')
     othersubmits = glob.glob(
-        '{}/condor/submit_scripts/{}_??.submit'.format(comp_data_dir, jobID))
+        '{}/submit_scripts/{}_??.submit'.format(condor_dir, jobID))
     jobID += '_{:02d}'.format(len(othersubmits) + 1)
     return jobID
 
@@ -112,6 +109,10 @@ if __name__ == "__main__":
     # Setup global path names
     mypaths = paths.Paths()
     checkdir(mypaths.comp_data_dir)
+    # Set up condor directory
+    condor_dir = '/scratch/{}/composition_condor'.format(getpass.getuser())
+    for directory in ['errors', 'logs', 'outs', 'submit_scripts']:
+        checkdir(condor_dir + '/' + directory + '/')
     simoutput = simfunctions.getSimOutput()
     default_sim_list = ['7006', '7579', '7241', '7263', '7791',
                         '7242', '7262', '7851', '7007', '7784']
@@ -125,7 +126,7 @@ if __name__ == "__main__":
                    default=default_sim_list,
                    help='Simulation to run over')
     p.add_argument('-n', '--n', dest='n', type=int,
-                   default=500,
+                   default=800,
                    help='Number of files to run per batch')
     p.add_argument('--test', dest='test', action='store_true',
                    default=False,
@@ -143,28 +144,24 @@ if __name__ == "__main__":
 
     cwd = os.getcwd()
     jobID = 'save_sim'
-    jobID = getjobID(jobID, mypaths.comp_data_dir)
+    jobID = getjobID(jobID, condor_dir)
     cmd = '{}/save_sim.py'.format(cwd)
     argdict = get_argdict(mypaths.comp_data_dir, **vars(args))
-    condor_script = '{}/condor/submit_scripts/{}.submit'.format(
-        mypaths.comp_data_dir, jobID)
-    make_submit_script(cmd, jobID, condor_script,
-        mypaths.comp_data_dir + '/condor')
+    condor_script = '{}/submit_scripts/{}.submit'.format(condor_dir, jobID)
+    make_submit_script(cmd, jobID, condor_script, condor_dir)
 
     merge_jobID = 'merge_sim'
-    merge_jobID = getjobID(merge_jobID, mypaths.comp_data_dir)
+    merge_jobID = getjobID(merge_jobID, condor_dir)
     merge_cmd = '{}/merge.py'.format(cwd)
     merge_argdict = get_merge_argdict(**vars(args))
-    merge_condor_script = '{}/condor/submit_scripts/{}.submit'.format(
-        mypaths.comp_data_dir, merge_jobID)
-    make_submit_script(merge_cmd, merge_jobID, merge_condor_script,
-                       mypaths.comp_data_dir + '/condor')
+    merge_condor_script = '{}/submit_scripts/{}.submit'.format(
+        condor_dir, merge_jobID)
+    make_submit_script(merge_cmd, merge_jobID, merge_condor_script, condor_dir)
 
     # Set up dag file
     jobID = 'save_sim_merge'
-    jobID = getjobID(jobID, mypaths.comp_data_dir)
-    dag_file = '{}/condor/submit_scripts/{}.submit'.format(
-        mypaths.comp_data_dir, jobID)
+    jobID = getjobID(jobID, condor_dir)
+    dag_file = '{}/submit_scripts/{}.submit'.format(condor_dir, jobID)
     checkdir(dag_file)
     with open(dag_file, 'w') as dag:
         for sim in argdict.keys():

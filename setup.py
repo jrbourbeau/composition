@@ -5,7 +5,8 @@ import sys
 import shutil
 import argparse
 
-from composition.support_functions.checkdir import checkdir
+# from composition.support_functions.checkdir import checkdir
+import composition as comp
 
 
 if __name__ == "__main__":
@@ -81,7 +82,3 @@ if __name__ == "__main__":
             lines[8] = new_llhdir_line
             lines[6] = new_metaproject_line
             new_paths.writelines(lines)
-
-    # Set up condor directory
-    for directory in ['dags', 'errors', 'logs', 'outs', 'submit_scripts']:
-        checkdir(args.comp_data_dir + '/condor/' + directory + '/')

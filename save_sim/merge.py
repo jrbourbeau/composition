@@ -6,7 +6,6 @@ import glob
 import os
 import numpy as np
 
-import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.paths as paths
 
 if __name__ == "__main__":
@@ -33,7 +32,6 @@ if __name__ == "__main__":
         '{}/*_sim/files/sim_{}_part*.hdf5'.format(mypaths.comp_data_dir,
             args.sim))
     master_list.sort()
-    print(mypaths.comp_data_dir)
 
     # Reduce list to set of all leading filenames (exclude parts)
     params = ['_'.join(f.split('_')[:-1]) for f in master_list]

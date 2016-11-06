@@ -6,14 +6,13 @@ import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 import seaborn.apionly as sns
+from mlxtend.evaluate import plot_decision_regions
 
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit, cross_val_score, train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import validation_curve, GridSearchCV
 
 from icecube import ShowerLLH
@@ -21,8 +20,7 @@ from icecube import ShowerLLH
 from composition.analysis.load_sim import load_sim
 from composition.analysis.preprocessing import get_train_test_sets
 from composition.analysis.pipelines import get_pipeline
-from composition.analysis.plotting_functions import plot_decision_regions
-import composition.analysis.data_functions as data_functions
+from composition.analysis.plotting import plot_decision_regions
 
 
 if __name__ == '__main__':
@@ -58,10 +56,9 @@ if __name__ == '__main__':
 
     df = df[selection_mask]
 
-    # feature_list = np.array(['MC_log_energy', 'InIce_log_charge', 'InIce_FractionContainment'])
     feature_list = np.array(['MC_log_energy', 'InIce_log_charge', 'NChannels'])
-    # X_train_std, X_test_std, y_train, y_test = get_train_test_sets(
-    #     df, feature_list)
+    X_train_std, X_test_std, y_train, y_test = get_train_test_sets(
+        df, feature_list)
     X, y = df[feature_list].values, df.MC_comp.values
     # Convert comp string labels to numerical labels
     le = LabelEncoder().fit(y)
@@ -81,12 +78,9 @@ if __name__ == '__main__':
 
     print('events = ' + str(y_train.shape[0]))
 
-    # pipeline = get_pipeline('KN')
+    # pipeline = get_pipeline('RF')
     # pipeline.fit(X_train_std, y_train)
-    # classifier = pipeline.steps[-1][-1]
-    # stdsc = pipeline.steps[0][-1]
-    # forest = RandomForestClassifier(n_estimators=500, max_depth=10, n_jobs=10)
-    kn = KNeighborsClassifier(n_neighbors=80, n_jobs=4)
+    forest = RandomForestClassifier(n_estimators=1000, max_depth=10, random_state=4, n_jobs=4)
 
     # param_grid = {'criterion': ['gini', 'entropy'],
     #               'max_features': ['auto', 'log2', None],
@@ -98,33 +92,38 @@ if __name__ == '__main__':
     # print('best params = {}'.format(grid.best_params_))
 
     # Train forest on training data
-    kn.fit(X_train_std, y_train)
+    forest.fit(X_train_std, y_train)
 
-    # fig, ax = plt.subplots()
-    # plot_decision_regions(X_test_std, y_test, kn, scatter_fraction=None)
+    # # Plotting decision regions
+    # plot_decision_regions(X_train_std, y_train, forest, scatter_fraction=None)
     # # Adding axes annotations
     # plt.xlabel('Scaled Energy')
     # plt.ylabel('Scaled Charge')
-    # plt.title('KNeighborsClassifier')
+    # plt.title('RandomForestClassifier')
     # plt.legend()
-    # outfile = args.outdir + '/KN-decision-regions.png'
+    # outfile = args.outdir + '/RF-decision-regions.png'
     # plt.savefig(outfile)
     #
-    # fig, ax = plt.subplots()
-    # plot_decision_regions(X_test_std, y_test, kn)
+    # # Plotting decision regions
+    # plot_decision_regions(X_train_std, y_train, forest)
     # # Adding axes annotations
     # plt.xlabel('Scaled Energy')
     # plt.ylabel('Scaled Charge')
-    # plt.title('KNeighborsClassifier')
+    # plt.title('RandomForestClassifier')
     # plt.legend()
-    # outfile = args.outdir + '/KN-decision-regions-scatter.png'
+    # outfile = args.outdir + '/RF-decision-regions-scatter.png'
     # plt.savefig(outfile)
 
+    name = forest.__class__.__name__
+    importances = forest.feature_importances_
+    indices = np.argsort(importances)[::-1]
+
     print('=' * 30)
-    test_predictions = kn.predict(X_test_std)
+    # print(name)
+    test_predictions = forest.predict(X_test_std)
     test_acc = accuracy_score(y_test, test_predictions)
     print('Test accuracy: {:.4%}'.format(test_acc))
-    train_predictions = kn.predict(X_train_std)
+    train_predictions = forest.predict(X_train_std)
     train_acc = accuracy_score(y_train, train_predictions)
     print('Train accuracy: {:.4%}'.format(train_acc))
     print('=' * 30)
@@ -170,35 +169,36 @@ if __name__ == '__main__':
     num_reco_total_energy_err = np.sqrt(num_reco_total_energy)
 
     # Calculate reco proton and iron fractions as a function of MC energy
-    reco_proton_frac, reco_proton_frac_err = data_functions.ratio_error(
-        num_reco_proton_energy, num_reco_proton_energy_err,
-        num_MC_protons_energy, num_MC_protons_energy_err)
+    reco_proton_frac = num_reco_proton_energy / num_MC_protons_energy
+    reco_proton_frac_err = reco_proton_frac * np.sqrt(
+        ((num_reco_proton_energy_err) / (num_reco_proton_energy))**2 +
+        ((num_MC_protons_energy_err) / (num_MC_protons_energy))**2)
 
-    reco_iron_frac, reco_iron_frac_err = data_functions.ratio_error(
-        num_reco_iron_energy, num_reco_iron_energy_err,
-        num_MC_irons_energy, num_MC_irons_energy_err)
+    reco_iron_frac = num_reco_iron_energy / num_MC_irons_energy
+    reco_iron_frac_err = reco_iron_frac * np.sqrt(
+        ((num_reco_iron_energy_err) / (num_reco_iron_energy))**2 +
+        ((num_MC_irons_energy_err / num_MC_irons_energy)**2))
 
-    reco_total_frac, reco_total_frac_err = data_functions.ratio_error(
-        num_reco_total_energy, num_reco_total_energy_err,
-        num_MC_total_energy, num_MC_total_energy_err)
+    reco_total_frac = num_reco_total_energy / num_MC_total_energy
+    reco_total_frac_err = reco_total_frac * np.sqrt(
+        ((num_reco_total_energy_err) / (num_reco_total_energy))**2 +
+        ((num_MC_total_energy_err) / (num_MC_total_energy))**2)
 
     # Plot fraction of events vs energy
     fig, ax = plt.subplots()
     ax.errorbar(energy_midpoints, reco_proton_frac,
                 yerr=reco_proton_frac_err,
-                # xerr=energy_bin_width / 2,
                 marker='.', markersize=10,
                 label='Proton')
     ax.errorbar(energy_midpoints, reco_iron_frac,
                 yerr=reco_iron_frac_err,
-                # xerr=energy_bin_width / 2,
                 marker='.', markersize=10,
                 label='Iron')
     ax.errorbar(energy_midpoints, reco_total_frac,
                 yerr=reco_total_frac_err,
-                # xerr=energy_bin_width / 2,
                 marker='.', markersize=10,
                 label='Total')
+    # ax.axhline(0.5, linestyle='-.', marker='None', color='k')
     if args.energy == 'MC':
         plt.xlabel('$\log_{10}(E_{\mathrm{MC}}/\mathrm{GeV})$')
     if args.energy == 'reco':
@@ -208,9 +208,9 @@ if __name__ == '__main__':
     ax.set_xlim([6.2, 9.5])
     # ax.set_xscale('log', nonposx='clip')
     plt.legend(bbox_to_anchor=(1.05, 1), loc=2,
-               borderaxespad=0.)
+            borderaxespad=0.)
     if args.energy == 'MC':
-        outfile = args.outdir + '/fraction-reco-correct_vs_MC-energy_baseline-KN.png'
+        outfile = args.outdir + '/fraction-reco-correct_vs_MC-energy_baseline-RF.png'
     if args.energy == 'reco':
         outfile = args.outdir + '/fraction-reco-correct_vs_reco-energy.png'
     plt.savefig(outfile)

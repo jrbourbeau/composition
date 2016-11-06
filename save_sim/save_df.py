@@ -13,7 +13,7 @@ from collections import defaultdict
 import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.paths as paths
 from composition.support_functions.checkdir import checkdir
-from ShowerLLH_scripts.analysis.zfix import zfix
+# from ShowerLLH_scripts.analysis.zfix import zfix
 
 
 if __name__ == "__main__":
@@ -37,12 +37,16 @@ if __name__ == "__main__":
     value_keys = ['IceTopMaxSignal',
                   'IceTopMaxSignalInEdge',
                   'IceTopMaxSignalString',
-                  'InIce_charge',
-                  'NChannels',
+                  'IceTopNeighbourMaxSignal',
+                  'InIce_charge_SRTCoincPulses',
+                  'NChannels_SRTCoincPulses',
+                  'InIce_charge_CoincPulses',
+                  'NChannels_CoincPulses',
                   'NStations',
                   'StationDensity',
                   'IceTop_FractionContainment',
-                  'InIce_FractionContainment']
+                  'InIce_FractionContainment',
+                  'LineFit_InIce_FractionContainment']
     for f in file_list:
         print('\tWorking on {}'.format(f))
         sim_dict = {}
@@ -109,7 +113,7 @@ if __name__ == "__main__":
         LLH_dict['reco_InIce_containment'] = np.choose(
             maxLLH_index, InIce_containment_choices)
 
-        LLH_dict['reco_energy'] = 10**(np.log10(LLH_dict['reco_energy'])-zfix(np.pi-LLH_dict['reco_zenith']))
+        # LLH_dict['reco_energy'] = 10**(np.log10(LLH_dict['reco_energy'])-zfix(np.pi-LLH_dict['reco_zenith']))
 
         store.close()
 

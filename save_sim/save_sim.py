@@ -17,6 +17,7 @@ from icecube.icetop_Level3_scripts.functions import count_stations
 import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.i3modules as i3modules
 
+
 if __name__ == "__main__":
 
     p = argparse.ArgumentParser(
@@ -35,12 +36,18 @@ if __name__ == "__main__":
     # Keys to write to frame
     keys = []
     keys += ['I3EventHeader']
-    keys += ['ShowerPlane', 'ShowerPlaneParams']
+    keys += ['ShowerPlane']
+    # keys += ['ShowerPlane', 'ShowerPlaneParams']
     keys += ['ShowerCOG']
     keys += ['MCPrimary']
     keys += ['IceTopMaxSignal', 'IceTopMaxSignalString',
-             'IceTopMaxSignalInEdge', 'StationDensity', 'NStations']
-    keys += ['NChannels', 'InIce_charge', 'InIce_FractionContainment', 'IceTop_FractionContainment']
+             'IceTopMaxSignalInEdge', 'IceTopNeighbourMaxSignal',
+             'StationDensity', 'NStations']
+    keys += ['NChannels', 'InIce_charge', 'max_charge_frac']
+    # keys += ['NChannels_CoincPulses', 'InIce_charge_CoincPulses',
+    #          'NChannels_SRTCoincPulses', 'InIce_charge_SRTCoincPulses']
+    keys += ['InIce_FractionContainment', 'IceTop_FractionContainment',
+             'LineFit_InIce_FractionContainment']
     keys += ['LaputopParams']
 
     t0 = time.time()
@@ -70,6 +77,9 @@ if __name__ == "__main__":
     tray.Add(uncompress, 'uncompress')
     hdf = I3HDFTableService(args.outfile)
 
+    # Filter out non-coincident frames
+    tray.Add(lambda frame: frame['IceTopInIce_StandardFilter'].value)
+
     def get_nstations(frame):
         nstation = 0
         if IT_pulses in frame:
@@ -79,26 +89,31 @@ if __name__ == "__main__":
 
     tray.Add(get_nstations)
 
-    def get_inice_charge(frame):
-        q_tot = 0.0
-        n_channels = 0
-        if inice_pulses in frame:
-            VEMpulses = frame[inice_pulses]
-            if VEMpulses.__class__ == dataclasses.I3RecoPulseSeriesMapMask:
-                VEMpulses = VEMpulses.apply(frame)
+    # def get_inice_charge(frame):
+    #     q_tot = 0.0
+    #     n_channels = 0
+    #     if inice_pulses in frame:
+    #         VEMpulses = frame[inice_pulses]
+    #         if VEMpulses.__class__ == dataclasses.I3RecoPulseSeriesMapMask:
+    #             VEMpulses = VEMpulses.apply(frame)
+    #
+    #             for om, pulses in VEMpulses:
+    #                 n_channels += 1
+    #                 for pulse in pulses:
+    #                     q_tot += pulse.charge
+    #
+    #     frame.Put('InIce_charge', dataclasses.I3Double(q_tot))
+    #     frame.Put('NChannels', icetray.I3Int(n_channels))
+    #     return
 
-                for om, pulses in VEMpulses:
-                    n_channels += 1
-                    for pulse in pulses:
-                        q_tot += pulse.charge
+    # tray.Add(get_inice_charge)
 
-        frame.Put('InIce_charge', dataclasses.I3Double(q_tot))
-        frame.Put('NChannels', icetray.I3Int(n_channels))
-        return
+    # Add total inice charge to frame
+    tray.Add(i3modules.AddInIceCharge, inice_pulses='SRTCoincPulses')
 
-    tray.Add(get_inice_charge)
-
+    # Add containment to frame
     tray.Add(i3modules.AddMCContainment)
+    tray.Add(i3modules.AddInIceRecoContainment)
 
     #====================================================================
     # Finish

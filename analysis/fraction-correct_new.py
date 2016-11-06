@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from __future__ import division
-from collections import Counter
 import argparse
 import numpy as np
 import pandas as pd
@@ -9,14 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import seaborn.apionly as sns
 
-from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import StratifiedShuffleSplit, cross_val_score, train_test_split
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import validation_curve, GridSearchCV
-
-from icecube import ShowerLLH
 
 from composition.analysis.load_sim import load_sim
 from composition.analysis.preprocessing import get_train_test_sets
@@ -51,7 +45,6 @@ if __name__ == '__main__':
                          'IceTopMaxSignal', 'NChannels', 'InIce_containment']
     for key in standard_cut_keys:
         selection_mask *= cut_dict[key]
-
     # Add additional energy cut (so IceTop maximum effective area has been
     # reached)
     selection_mask *= (df.MC_log_energy >= 6.2)
@@ -60,45 +53,14 @@ if __name__ == '__main__':
 
     # feature_list = np.array(['MC_log_energy', 'InIce_log_charge', 'InIce_FractionContainment'])
     feature_list = np.array(['MC_log_energy', 'InIce_log_charge', 'NChannels'])
-    # X_train_std, X_test_std, y_train, y_test = get_train_test_sets(
-    #     df, feature_list)
-    X, y = df[feature_list].values, df.MC_comp.values
-    # Convert comp string labels to numerical labels
-    le = LabelEncoder().fit(y)
-    y = le.transform(y)
-
-    # Split data into training and test samples
-    sss = StratifiedShuffleSplit(n_splits=10, test_size=0.2, random_state=2)
-    for train_index, test_index in sss.split(X, y):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-
-    # Scale features and labels
-    # NOTE: the scaler is fit only to the training features
-    stdsc = StandardScaler()
-    X_train_std = stdsc.fit_transform(X_train)
-    X_test_std = stdsc.transform(X_test)
+    X_train, X_test, y_train, y_test = get_train_test_sets(df, feature_list)
 
     print('events = ' + str(y_train.shape[0]))
 
-    # pipeline = get_pipeline('KN')
-    # pipeline.fit(X_train_std, y_train)
-    # classifier = pipeline.steps[-1][-1]
-    # stdsc = pipeline.steps[0][-1]
-    # forest = RandomForestClassifier(n_estimators=500, max_depth=10, n_jobs=10)
-    kn = KNeighborsClassifier(n_neighbors=80, n_jobs=4)
-
-    # param_grid = {'criterion': ['gini', 'entropy'],
-    #               'max_features': ['auto', 'log2', None],
-    #               'max_depth': [4, 6, 10]}
-    # grid = GridSearchCV(forest, param_grid=param_grid, cv=sss,
-    #                     verbose=3, scoring='accuracy', n_jobs=10)
-    # grid.fit(X_train_std, y_train)
-    # print('best score = {}'.format(grid.best_score_))
-    # print('best params = {}'.format(grid.best_params_))
-
-    # Train forest on training data
-    kn.fit(X_train_std, y_train)
+    pipeline = get_pipeline('KN')
+    pipeline.fit(X_train, y_train)
+    scaler = pipeline.named_steps['scaler']
+    clf = pipeline.named_steps['classifier']
 
     # fig, ax = plt.subplots()
     # plot_decision_regions(X_test_std, y_test, kn, scatter_fraction=None)
@@ -121,30 +83,28 @@ if __name__ == '__main__':
     # plt.savefig(outfile)
 
     print('=' * 30)
-    test_predictions = kn.predict(X_test_std)
+    name = clf.__class__.__name__
+    print(name)
+    test_predictions = pipeline.predict(X_test)
     test_acc = accuracy_score(y_test, test_predictions)
     print('Test accuracy: {:.4%}'.format(test_acc))
-    train_predictions = kn.predict(X_train_std)
+    train_predictions = pipeline.predict(X_train)
     train_acc = accuracy_score(y_train, train_predictions)
     print('Train accuracy: {:.4%}'.format(train_acc))
     print('=' * 30)
 
     correctly_identified_mask = (test_predictions == y_test)
-    # correctly_identified_mask = (train_predictions == y_train)
 
-    # LLH_bins = ShowerLLH.LLHBins(bintype='logdist')
-    # energy_bins = LLH_bins.bins['E']
-    # energy_bins = energy_bins[energy_bins >= 6.2]
     energy_bin_width = 0.2
     energy_bins = np.arange(6.2, 9.51, energy_bin_width)
     energy_midpoints = (energy_bins[1:] + energy_bins[:-1]) / 2
     if args.energy == 'MC':
-        log_energy = stdsc.inverse_transform(X_test_std)[:, 0]
+        log_energy = X_test[:, 0]
     if args.energy == 'reco':
         log_energy = stdsc.inverse_transform(X_test_std)[:, 0]
 
-    MC_proton_mask = (le.inverse_transform(y_test) == 'P')
-    MC_iron_mask = (le.inverse_transform(y_test) == 'Fe')
+    MC_proton_mask = (y_test == 'P')
+    MC_iron_mask = (y_test == 'Fe')
     # Get number of MC proton and iron as a function of MC energy
     num_MC_protons_energy = np.histogram(log_energy[MC_proton_mask],
                                          bins=energy_bins)[0]
