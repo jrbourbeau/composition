@@ -13,7 +13,6 @@ from collections import defaultdict
 import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.paths as paths
 from composition.support_functions.checkdir import checkdir
-# from ShowerLLH_scripts.analysis.zfix import zfix
 
 
 if __name__ == "__main__":
@@ -33,20 +32,18 @@ if __name__ == "__main__":
     t_sim = time.time()
     print('Loading simulation information...')
     file_list = sorted(glob.glob(mypaths.comp_data_dir +
-                          '/IT73_sim/files/sim_????.hdf5'))
+                                 '/IT73_sim/files/sim_????.hdf5'))
     value_keys = ['IceTopMaxSignal',
                   'IceTopMaxSignalInEdge',
                   'IceTopMaxSignalString',
                   'IceTopNeighbourMaxSignal',
-                  'InIce_charge_SRTCoincPulses',
-                  'NChannels_SRTCoincPulses',
-                  'InIce_charge_CoincPulses',
-                  'NChannels_CoincPulses',
+                  'InIce_charge',
+                  'NChannels',
+                  'max_charge_frac',
                   'NStations',
                   'StationDensity',
                   'IceTop_FractionContainment',
-                  'InIce_FractionContainment',
-                  'LineFit_InIce_FractionContainment']
+                  'InIce_FractionContainment']
     for f in file_list:
         print('\tWorking on {}'.format(f))
         sim_dict = {}
@@ -75,45 +72,36 @@ if __name__ == "__main__":
     t_LLH = time.time()
     print('Loading ShowerLLH reconstructions...')
     file_list = sorted(glob.glob(mypaths.llh_dir +
-                          '/IT73_sim/files/SimLLH_????_logdist.hdf5'))
+                                 '/IT73_sim/files/SimLLH_????_logdist.hdf5'))
     for f in file_list:
         print('\tWorking on {}'.format(f))
         LLH_dict = {}
         store = pd.HDFStore(f)
         # Get most-likely composition
-        proton_maxLLH = store.select('ShowerLLHParams_proton').maxLLH
-        iron_maxLLH = store.select('ShowerLLHParams_iron').maxLLH
-        LLH_array = np.array([proton_maxLLH, iron_maxLLH]).T
-        maxLLH_index = np.argmax(LLH_array, axis=1)
-        showerLLH_proton = store.select('ShowerLLH_proton')
-        showerLLH_iron = store.select('ShowerLLH_iron')
-        LLH_dict['reco_exists'] = showerLLH_proton.exists.astype(bool)
+        LLH_particle = store.select('ShowerLLH')
+        LLH_dict['reco_exists'] = LLH_particle.exists.astype(bool)
         # Get ML energy
-        energy_choices = [showerLLH_proton.energy.values, showerLLH_iron.energy.values]
-        LLH_dict['reco_energy'] = np.choose(maxLLH_index, energy_choices)
+        LLH_dict['reco_energy'] = LLH_particle.energy
         # Get ML core position
-        x_choices = [showerLLH_proton.x, showerLLH_iron.x]
-        LLH_dict['reco_x'] = np.choose(maxLLH_index, x_choices)
-        y_choices = [showerLLH_proton.y, showerLLH_iron.y]
-        LLH_dict['reco_y'] = np.choose(maxLLH_index, y_choices)
+        LLH_dict['reco_x'] = LLH_particle.x
+        LLH_dict['reco_y'] = LLH_particle.y
         # Get ML core radius
-        r_choices = [np.sqrt(showerLLH_proton.x**2 + showerLLH_proton.y**2),
-                     np.sqrt(showerLLH_iron.x**2 + showerLLH_iron.y**2)]
-        LLH_dict['reco_radius'] = np.choose(maxLLH_index, r_choices)
+        LLH_dict['reco_radius'] = np.sqrt(
+            LLH_dict['reco_x']**2 + LLH_dict['reco_y']**2)
         # Get ML zenith
-        zenith_choices = [showerLLH_proton.zenith, showerLLH_iron.zenith]
-        LLH_dict['reco_zenith'] = np.choose(maxLLH_index, zenith_choices)
-        # Get containment information
-        IT_containment_choices = [store.select('ShowerLLH_IceTop_containment_proton').value,
-                                  store.select('ShowerLLH_IceTop_containment_iron').value]
-        LLH_dict['reco_IT_containment'] = np.choose(
-            maxLLH_index, IT_containment_choices)
-        InIce_containment_choices = [store.select('ShowerLLH_InIce_containment_proton').value,
-                                     store.select('ShowerLLH_InIce_containment_iron').value]
-        LLH_dict['reco_InIce_containment'] = np.choose(
-            maxLLH_index, InIce_containment_choices)
-
-        # LLH_dict['reco_energy'] = 10**(np.log10(LLH_dict['reco_energy'])-zfix(np.pi-LLH_dict['reco_zenith']))
+        LLH_dict['reco_zenith'] = LLH_particle.zenith
+        # Get ShowerLLH containment information
+        LLH_dict['reco_IT_containment'] = store.select(
+            'ShowerLLH_IceTop_containment').value
+        LLH_dict['reco_InIce_containment'] = store.select(
+            'ShowerLLH_InIce_containment').value
+        # Get ShowerLLH+lap hybrid containment information
+        LLH_dict[
+            'LLH-lap_IT_containment'] = store.select('LLH-lap_IceTop_containment').value
+        LLH_dict[
+            'LLH-lap_InIce_containment'] = store.select('LLH-lap_InIce_containment').value
+        LLH_dict['combined_reco_exists'] = store.select(
+            'LLH-lap_InIce_containment').exists.astype(bool)
 
         store.close()
 

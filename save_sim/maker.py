@@ -1,5 +1,3 @@
-#!/bin/sh /cvmfs/icecube.opensciencegrid.org/py2-v1/icetray-start
-#METAPROJECT /data/user/jbourbeau/metaprojects/icerec/V05-00-00/build
 #!/usr/bin/env python
 
 import glob
@@ -85,8 +83,10 @@ def make_submit_script(executable, jobID, script_path, condor_dir):
              "executable = {}\n".format(executable),
              "arguments = $(ARGS)\n",
              "log = {}/logs/{}.log\n".format(condor_dir, jobID),
-             "output = {}/outs/{}.out\n".format(condor_dir, jobID),
-             "error = {}/errors/{}.error\n".format(condor_dir, jobID),
+             "output = /data/user/jbourbeau/composition/condor/outs/{}.out\n".format(jobID),
+            #  "output = {}/outs/{}.out\n".format(condor_dir, jobID),
+             "error = /data/user/jbourbeau/composition/condor/errors/{}.error\n".format(jobID),
+            #  "error = {}/errors/{}.error\n".format(condor_dir, jobID),
              "notification = Never\n",
              "queue \n"]
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     mypaths = paths.Paths()
     checkdir(mypaths.comp_data_dir)
     # Set up condor directory
-    condor_dir = '/scratch/{}/composition_condor'.format(getpass.getuser())
+    condor_dir = '/scratch/{}/condor_composition'.format(getpass.getuser())
     for directory in ['errors', 'logs', 'outs', 'submit_scripts']:
         checkdir(condor_dir + '/' + directory + '/')
     simoutput = simfunctions.getSimOutput()

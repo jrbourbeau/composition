@@ -7,7 +7,8 @@ def get_train_test_sets(df, feature_list):
     # Load and preprocess training data
     X, y = df[feature_list].values , df.MC_comp.values
     # Convert comp string labels to numerical labels
-    # y = LabelEncoder().fit_transform(y)
+    le = LabelEncoder()
+    y = le.fit_transform(y)
 
     # Split data into training and test samples
     sss = StratifiedShuffleSplit(n_splits=10, test_size=0.3, random_state=2)
@@ -22,4 +23,4 @@ def get_train_test_sets(df, feature_list):
     # X_test_std = stdsc.transform(X_test)
 
     # return X_train_std, X_test_std, y_train, y_test
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, le

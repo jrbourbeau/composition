@@ -44,15 +44,14 @@ if __name__ == "__main__":
              'IceTopMaxSignalInEdge', 'IceTopNeighbourMaxSignal',
              'StationDensity', 'NStations']
     keys += ['NChannels', 'InIce_charge', 'max_charge_frac']
-    # keys += ['NChannels_CoincPulses', 'InIce_charge_CoincPulses',
-    #          'NChannels_SRTCoincPulses', 'InIce_charge_SRTCoincPulses']
     keys += ['InIce_FractionContainment', 'IceTop_FractionContainment',
              'LineFit_InIce_FractionContainment']
-    keys += ['LaputopParams']
+    keys += ['Laputop', 'LaputopParams']
 
     t0 = time.time()
 
     # Construct list of non-truncated files to process
+    # icetray.set_log_level(icetray.I3LogLevel.LOG_DEBUG)
     good_file_list = []
     for test_file in args.files:
         try:
@@ -72,12 +71,13 @@ if __name__ == "__main__":
     tray = I3Tray()
     tray.context['I3FileStager'] = dataio.get_stagers(
         staging_directory=os.environ['_CONDOR_SCRATCH_DIR'])
+    # icetray.logging.log_dedug('good_file_list = {}'.format(good_file_list))
     tray.Add('I3Reader', FileNameList=good_file_list)
     # Uncompress Level3 diff files
     tray.Add(uncompress, 'uncompress')
     hdf = I3HDFTableService(args.outfile)
 
-    # Filter out non-coincident frames
+    # Filter out non-coincident P frames
     tray.Add(lambda frame: frame['IceTopInIce_StandardFilter'].value)
 
     def get_nstations(frame):
