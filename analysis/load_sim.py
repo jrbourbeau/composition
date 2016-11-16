@@ -24,12 +24,13 @@ def load_sim(config='IT73', bintype='logdist', return_cut_dict=False):
     # Adapted from PHYSICAL REVIEW D 88, 042004 (2013)
     cut_dict = OrderedDict()
     # IT specific cuts
-    cut_dict['reco_exists'] = df['reco_exists']
+    cut_dict['ShowerLLH_reco_exists'] = df['reco_exists']
     cut_dict['MC_zenith'] = (np.cos(df['MC_zenith']) >= 0.8)
-    cut_dict['reco_zenith'] = (np.cos(np.pi - df['reco_zenith']) >= 0.8)
+    cut_dict['reco_zenith'] = (np.cos(df['reco_zenith']) >= 0.8)
+    # cut_dict['reco_zenith'] = (np.cos(np.pi - df['reco_zenith']) >= 0.8)
     cut_dict['IT_containment'] = (df['IceTop_FractionContainment'] < 1.0)
     cut_dict['reco_IT_containment'] = (df['reco_IT_containment'] < 1.0)
-    # cut_dict['LLH-lap_IT_containment'] = (df['LLH-lap_IT_containment'] < 1.0)
+    cut_dict['LLHlap_IT_containment'] = (df['LLHlap_IT_containment'] < 1.0)
     cut_dict['IceTopMaxSignalInEdge'] = np.logical_not(
         df['IceTopMaxSignalInEdge'].astype(bool))
     cut_dict['IceTopMaxSignal'] = (df['IceTopMaxSignal'] >= 6)
@@ -37,20 +38,29 @@ def load_sim(config='IT73', bintype='logdist', return_cut_dict=False):
         df['IceTopNeighbourMaxSignal'] >= 4)
     cut_dict['NStations'] = (df['NStations'] >= 5)
     cut_dict['StationDensity'] = (df['StationDensity'] >= 0.2)
-    cut_dict['min_energy'] = (np.log10(df['reco_energy']) > 6.2)
-    cut_dict['max_energy'] = (np.log10(df['reco_energy']) < 8.0)
+    cut_dict['min_energy'] = (df['reco_energy'] > 10**6.2)
+    cut_dict['max_energy'] = (df['reco_energy'] < 10**8.0)
+
     # InIce specific cuts
     cut_dict['NChannels'] = (df['NChannels'] >= 8)
     cut_dict['InIce_containment'] = (df['InIce_FractionContainment'] < 1.0)
     cut_dict['reco_InIce_containment'] = (df['reco_InIce_containment'] < 1.0)
-    # cut_dict['LLH-lap_InIce_containment'] = (df['LLH-lap_InIce_containment'] < 1.0)
+    cut_dict['LLHlap_InIce_containment'] = (
+        df['LLHlap_InIce_containment'] < 1.0)
     cut_dict['max_charge_frac'] = (df['max_charge_frac'] < 0.3)
+    
     # Some conbined cuts
+    cut_dict['combined_reco_exists'] = df['combined_reco_exists']
+    cut_dict['reco_exists'] = cut_dict[
+        'ShowerLLH_reco_exists'] & cut_dict['combined_reco_exists']
     cut_dict['num_hits'] = cut_dict['NChannels'] & cut_dict['NStations']
     cut_dict['reco_containment'] = cut_dict[
-        'reco_IT_containment'] & cut_dict['reco_InIce_containment']
+        'reco_IT_containment'] & cut_dict['LLHlap_InIce_containment']
+    # cut_dict['reco_containment'] = cut_dict[
+    #     'reco_IT_containment'] & cut_dict['reco_InIce_containment']
     cut_dict['IT_signal'] = cut_dict['IceTopMaxSignalInEdge'] & cut_dict[
         'IceTopMaxSignal'] & cut_dict['IceTopNeighbourMaxSignal']
+    cut_dict['energy_range'] = cut_dict['min_energy'] & cut_dict['max_energy']
 
     # Add log-energy and log-charge columns to df
     df['MC_log_energy'] = np.nan_to_num(np.log10(df['MC_energy']))
@@ -65,7 +75,7 @@ def load_sim(config='IT73', bintype='logdist', return_cut_dict=False):
     else:
         selection_mask = np.array([True] * len(df))
         standard_cut_keys = ['reco_exists', 'reco_zenith', 'num_hits', 'IT_signal',
-                             'StationDensity', 'reco_containment', 'min_energy', 'max_energy', 'max_charge_frac']
+                             'StationDensity', 'reco_containment', 'max_charge_frac', 'energy_range']
         for key in standard_cut_keys:
             selection_mask *= cut_dict[key]
         # Print cut event flow

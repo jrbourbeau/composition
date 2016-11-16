@@ -32,36 +32,25 @@ if __name__ == '__main__':
     args = p.parse_args()
 
     # Load and preprocess training data
-    # df = load_sim()
-    df, cut_dict = load_sim(return_cut_dict=True)
-    selection_mask = np.array([True] * len(df))
-    standard_cut_keys = ['IT_containment', 'IceTopMaxSignalInEdge',
-                         'IceTopMaxSignal', 'NChannels', 'InIce_containment']
-    for key in standard_cut_keys:
-        selection_mask *= cut_dict[key]
-    # Add additional energy cut (so IceTop maximum effective area has been
-    # reached)
-    selection_mask *= (df.MC_log_energy >= 6.2)
-
-    df = df[selection_mask]
-    # feature_list = np.array(['ShowerPlane_cos_zenith', 'InIce_log_charge',
+    df = load_sim()
+    # df, cut_dict = load_sim(return_cut_dict=True)
+    # selection_mask = np.array([True] * len(df))
+    # standard_cut_keys = ['IT_containment', 'IceTopMaxSignalInEdge',
+    #                      'IceTopMaxSignal', 'NChannels', 'InIce_containment']
+    # for key in standard_cut_keys:
+    #     selection_mask *= cut_dict[key]
+    # # Add additional energy cut (so IceTop maximum effective area has been
+    # # reached)
+    # selection_mask *= (df.MC_log_energy >= 6.2)
+    #
+    # df = df[selection_mask]
     feature_list = np.array(['reco_log_energy', 'reco_cos_zenith', 'InIce_log_charge',
-                             'NChannels', 'NStations', 'reco_radius', 'reco_InIce_containment', 'log_s125'])
+                             'NChannels', 'NStations', 'reco_radius', 'LLHlap_InIce_containment',
+                             'log_s125', 'lap_chi2'])
     num_features = len(feature_list)
-    X_train_std, X_test_std, y_train, y_test = get_train_test_sets(
-        df, feature_list)
 
-    pipeline = get_pipeline(args.classifier)
-    pipeline.fit(X_train_std, y_train)
-
-    name = pipeline.steps[1][1].__class__.__name__
-    importances = pipeline.steps[1][1].feature_importances_
-    indices = np.argsort(importances)[::-1]
-
-    fig, ax = plt.subplots()
-    # feature_labels = np.array(['$\cos(\\theta)$', 'InIce charge',
     feature_labels = np.array(['$\\log_{10}({\mathrm{E/GeV})$', '$\cos(\\theta)$', 'InIce charge',
-                               'NChannels', 'NStations', 'IT reco radius', 'InIce containment', 'log(s125)'])
+                               'NChannels', 'NStations', 'IT reco radius', 'InIce containment', 'log(s125)', 'chi2'])
     d = pd.DataFrame(df, columns=feature_list)
     # Compute the correlation matrix
     corr = d.corr()

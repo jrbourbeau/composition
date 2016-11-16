@@ -10,6 +10,9 @@ import argparse
 import os
 from collections import defaultdict
 
+from icecube.weighting.weighting import from_simprod
+from icecube.weighting.fluxes import GaisserH3a, GaisserH4a
+
 import composition.support_functions.simfunctions as simfunctions
 import composition.support_functions.paths as paths
 from composition.support_functions.checkdir import checkdir
@@ -62,9 +65,32 @@ if __name__ == "__main__":
         sim_dict['sim'] = np.array([sim_num] * len(store.select('MCPrimary')))
         sim_dict['MC_comp'] = np.array(
             [simfunctions.sim2comp(sim_num)] * len(store.select('MCPrimary')))
+        # Get Laputop reduced chi-squared
+        sim_dict['lap_chi2'] = store.select('LaputopParams')[
+            'chi2'] / store.select('LaputopParams')['ndf']
+        sim_dict['lap_x'] = store.select('Laputop')['x']
+        sim_dict['lap_y'] = store.select('Laputop')['y']
         store.close()
         for key in sim_dict.keys():
             dataframe_dict[key] += sim_dict[key].tolist()
+
+    # # Calculate simulation event weights
+    # print('\nCalculating simulation event weights...\n')
+    # simlist = np.unique(dataframe_dict['sim'])
+    # num_files_dict = {'7006': 30000, '7007': 30000,
+    #                   '7579': 12000, '7784': 12000}
+    # for i, sim in enumerate(simlist):
+    #     if i == 0:
+    #         generator = num_files_dict[sim] * from_simprod(int(sim))
+    #     else:
+    #         generator += num_files_dict[sim] * from_simprod(int(sim))
+    # flux = GaisserH3a()
+    # dataframe_dict['weights_H3a'] = flux(dataframe_dict['MC_energy'], dataframe_dict[
+    #                         'MC_type']) / generator(dataframe_dict['MC_energy'], dataframe_dict['MC_type'])
+    # flux = GaisserH4a()
+    # dataframe_dict['weights_H4a'] = flux(dataframe_dict['MC_energy'], dataframe_dict['MC_type']) / \
+    #     generator(dataframe_dict['MC_energy'], dataframe_dict['MC_type'])
+    # dataframe_dict['areas'] = 1.0 / generator(dataframe_dict['MC_energy'], dataframe_dict['MC_type'])
     print('Time taken: {}'.format(time.time() - t_sim))
     print('Time per file: {}\n'.format((time.time() - t_sim) / 4))
 
@@ -97,11 +123,11 @@ if __name__ == "__main__":
             'ShowerLLH_InIce_containment').value
         # Get ShowerLLH+lap hybrid containment information
         LLH_dict[
-            'LLH-lap_IT_containment'] = store.select('LLH-lap_IceTop_containment').value
+            'LLHlap_IT_containment'] = store.select('LLHlap_IceTop_containment').value
         LLH_dict[
-            'LLH-lap_InIce_containment'] = store.select('LLH-lap_InIce_containment').value
+            'LLHlap_InIce_containment'] = store.select('LLHlap_InIce_containment').value
         LLH_dict['combined_reco_exists'] = store.select(
-            'LLH-lap_InIce_containment').exists.astype(bool)
+            'LLHlap_InIce_containment').exists.astype(bool)
 
         store.close()
 

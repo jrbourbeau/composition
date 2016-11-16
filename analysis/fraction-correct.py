@@ -9,6 +9,7 @@ from matplotlib.colors import ListedColormap
 import seaborn.apionly as sns
 
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import cross_val_score
 from sklearn.neighbors import KNeighborsClassifier
 
 from composition.analysis.load_sim import load_sim
@@ -31,7 +32,7 @@ if __name__ == '__main__':
                    default='reco',
                    help='Output directory')
     p.add_argument('-clf', dest='classifier',
-                   choices=['RF', 'KN'],
+                   choices=['RF', 'KN', 'GBC'],
                    default='RF',
                    help='Output directory')
     p.add_argument('--outdir', dest='outdir',
@@ -47,7 +48,7 @@ if __name__ == '__main__':
     selection_mask = np.array([True] * len(df))
     standard_cut_keys = ['reco_exists', 'reco_zenith', 'num_hits', 'IT_signal',
                          'StationDensity', 'max_charge_frac', 'reco_containment',
-                         'min_energy', 'max_energy']
+                         'energy_range']
     for key in standard_cut_keys:
         selection_mask *= cut_dict[key]
 
@@ -68,7 +69,8 @@ if __name__ == '__main__':
     if len(feature_list) == 2:
         fig, ax = plt.subplots()
         X_test_std = scaler.transform(X_test)
-        plotting.plot_decision_regions(X_test_std, y_test, clf, scatter_fraction=None)
+        plotting.plot_decision_regions(
+            X_test_std, y_test, clf, scatter_fraction=None)
         # Adding axes annotations
         plt.xlabel('Scaled energy')
         plt.ylabel('Scaled charge')
@@ -99,6 +101,9 @@ if __name__ == '__main__':
     train_predictions = pipeline.predict(X_train)
     train_acc = accuracy_score(y_train, train_predictions)
     print('Train accuracy: {:.4%}'.format(train_acc))
+    scores = cross_val_score(
+        estimator=pipeline, X=X_test, y=y_test, cv=10, n_jobs=10)
+    print('CV score: {:.2%} (+/- {:.2%})'.format(scores.mean(), scores.std()))
     print('=' * 30)
 
     correctly_identified_mask = (test_predictions == y_test)
@@ -172,6 +177,7 @@ if __name__ == '__main__':
     ax.set_ylabel('Fraction correctly identified')
     ax.set_ylim([0.0, 1.0])
     ax.set_xlim([6.2, 8.0])
+    # ax.set_xlim([6.2, 9.5])
     plt.grid()
     plt.legend(loc=3)
     if args.energy == 'MC':

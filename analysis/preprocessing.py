@@ -3,7 +3,10 @@
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import StratifiedShuffleSplit
 
-def get_train_test_sets(df, feature_list):
+def get_train_test_sets(df, feature_list, weight_type=None):
+
+    if weight_type:
+        feature_list += [weight_type]
     # Load and preprocess training data
     X, y = df[feature_list].values , df.MC_comp.values
     # Convert comp string labels to numerical labels
